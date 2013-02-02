@@ -5,8 +5,20 @@ This project contains rasterized versions of TTF fonts for OpenGL rendering.
 
 Send questions or comments to Jeff Boody at jeffboody@gmail.com
 
+Installing Fonts
+================
+
+	cp font.ttf ~/.fonts
+	cd ~/.fonts
+	fc-cache -fv
+
 White Rabbit Font
 =================
+
+zwhitrabt
+---------
+
+zwhitrabt is a modified version of whitrabt which increases the space between lines.
 
 About
 -----
