@@ -310,9 +310,14 @@ int main(int argc, char** argv)
 	const char* name = argv[3];
 
 	char texname[256];
-	snprintf(texname, 256, "%s-%i.png",
+	snprintf(texname, 256, "%s-%i.texz",
 	         name, tex_height);
 	texname[255] = '\0';
+
+	char pngname[256];
+	snprintf(pngname, 256, "%s-%i.png",
+	         name, tex_height);
+	pngname[255] = '\0';
 
 	char xmlname[256];
 	snprintf(xmlname, 256, "%s-%i.xml",
@@ -425,7 +430,12 @@ int main(int argc, char** argv)
 		goto fail_crop;
 	}
 
-	if(texgz_png_export(tex, texname) == 0)
+	if(texgz_png_export(tex, pngname) == 0)
+	{
+		goto fail_export;
+	}
+
+	if(texgz_tex_exportz(tex, texname) == 0)
 	{
 		goto fail_export;
 	}
