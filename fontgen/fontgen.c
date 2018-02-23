@@ -275,48 +275,48 @@ static int fontgen_render(FT_Face face,
 int main(int argc, char** argv)
 {
 	const char* string = NULL;
-	if(argc == 6)
+	if(argc == 5)
 	{
 		// a debug string may be rendered in place of font map
-		string = argv[5];
+		string = argv[4];
 	}
-	else if(argc != 5)
+	else if(argc != 4)
 	{
-		LOGE("usage: %s <font_size> <tex_height> <font.ttf> <font_name> [string]", argv[0]);
+		LOGE("usage: %s <tex_height> <font.ttf> <font_name> [string]", argv[0]);
 		return EXIT_FAILURE;
 	}
 
-	// parse font_size
-	int font_size = strtol(argv[1], NULL, 0);
+	// parse tex_height
+	int tex_height = strtol(argv[1], NULL, 0);
+	if(tex_height <= 0)
+	{
+		LOGE("invalid %s", argv[1]);
+		return EXIT_FAILURE;
+	}
+
+	// compute font_size
+	int font_size = (8*tex_height)/10;
 	if(font_size <= 0)
 	{
 		LOGE("invalid %s", argv[1]);
 		return EXIT_FAILURE;
 	}
 
-	// parse tex_height
-	int tex_height = strtol(argv[2], NULL, 0);
-	if(tex_height < font_size)
-	{
-		LOGE("invalid %s", argv[2]);
-		return EXIT_FAILURE;
-	}
-
 	// parse filenames
 	char fname[256];
-	snprintf(fname, 256, "%s", argv[3]);
+	snprintf(fname, 256, "%s", argv[2]);
 	fname[255] = '\0';
 
-	const char* name = argv[4];
+	const char* name = argv[3];
 
 	char texname[256];
-	snprintf(texname, 256, "%s-%i-%i.png",
-	         name, font_size, tex_height);
+	snprintf(texname, 256, "%s-%i.png",
+	         name, tex_height);
 	texname[255] = '\0';
 
 	char xmlname[256];
-	snprintf(xmlname, 256, "%s-%i-%i.xml",
-	         name, font_size, tex_height);
+	snprintf(xmlname, 256, "%s-%i.xml",
+	         name, tex_height);
 	xmlname[255] = '\0';
 
 	FT_Library library;
