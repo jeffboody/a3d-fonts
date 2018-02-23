@@ -68,8 +68,9 @@ static int fontgen_exportXml(glyph_coords_t* coords,
 	fprintf(f, "<font name=\"%s\" size=\"%i\" h=\"%i\">\n",
 	        name, font_size, tex_height);
 
+	// treat the "unit separator" as the cursor
 	int c;
-	for(c = 32; c <= 126; ++c)
+	for(c = 31; c <= 126; ++c)
 	{
 		fprintf(f, "\t<coords c=\"0x%X\" x=\"%i\" y=\"%i\" w=\"%i\" />\n",
 		        c, coords[c].x, coords[c].y, coords[c].w);
@@ -101,6 +102,13 @@ static int fontgen_top(FT_Face face, int c, int* top)
 {
 	assert(face);
 	assert(top);
+
+	// treat the "unit separator" as the cursor
+	// but give it the same dimensions as '/'
+	if(c == 31)
+	{
+		c = '/';
+	}
 
 	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
 	if(glyph_index == 0)
@@ -141,6 +149,15 @@ static int fontgen_render(FT_Face face,
 	assert(x);
 	assert(y);
 	assert(coords);
+
+	// treat the "unit separator" as the cursor
+	// but give it the same dimensions as '/'
+	int is_cursor = 0;
+	if(c == 31)
+	{
+		c = '[';
+		is_cursor = 1;
+	}
 
 	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
 	if(glyph_index == 0)
@@ -201,13 +218,27 @@ static int fontgen_render(FT_Face face,
 	int i;
 	int j;
 	unsigned char* pixels = tex->pixels;
-	for(i = 0; i < bitmap->rows; ++i)
+	if(is_cursor)
 	{
-		for(j = 0; j < bitmap->width; ++j)
+		for(i = 0; i < bitmap->rows; ++i)
 		{
-			int src = i*bitmap->width + j;
-			int dst = (yy + i + offy)*FONTGEN_TEX_WIDTH + (xx + j + offx);
-			pixels[dst] = bitmap->buffer[src];
+			for(j = 0; j < bitmap->width; ++j)
+			{
+				int dst = (yy + i + offy)*FONTGEN_TEX_WIDTH + (xx + j + offx);
+				pixels[dst] = 0xFF;
+			}
+		}
+	}
+	else
+	{
+		for(i = 0; i < bitmap->rows; ++i)
+		{
+			for(j = 0; j < bitmap->width; ++j)
+			{
+				int src = i*bitmap->width + j;
+				int dst = (yy + i + offy)*FONTGEN_TEX_WIDTH + (xx + j + offx);
+				pixels[dst] = bitmap->buffer[src];
+			}
 		}
 	}
 
@@ -310,6 +341,7 @@ int main(int argc, char** argv)
 
 	// measure printable ascii characters
 	// because freetype has a weird origin
+	// ignore the "unit separator" character
 	int c;
 	int top = 0;
 	for(c = 32; c <= 126; ++c)
@@ -345,6 +377,7 @@ int main(int argc, char** argv)
 		while(string[c] != '\0')
 		{
 			// check for non-printable ascii characters
+			// ignore the "unit separator" character
 			if((string[c] < 32) || (string[c] > 126))
 			{
 				++c;
@@ -365,7 +398,8 @@ int main(int argc, char** argv)
 	else
 	{
 		// render printable ascii characters
-		for(c = 32; c <= 126; ++c)
+		// treat the "unit separator" as the cursor
+		for(c = 31; c <= 126; ++c)
 		{
 			if(fontgen_render(face,
 			                  top, tex_height, font_size, c,
