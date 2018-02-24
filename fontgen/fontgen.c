@@ -161,6 +161,16 @@ static int fontgen_render(FT_Face face,
 		glyph_c   = '[';
 	}
 
+	// workaround for BarlowCondensed font where the right paren
+	// is cropped to the wrong width when rendered with freetype
+	// https://fonts.google.com/specimen/Barlow+Condensed
+	int reverse = 0;
+	if(c == (int) ')')
+	{
+		reverse = 1;
+		glyph_c   = '(';
+	}
+
 	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
 	if(glyph_index == 0)
 	{
@@ -211,7 +221,9 @@ static int fontgen_render(FT_Face face,
 	// bounding box
 	if(offx < 0)
 	{
-		offx = 0;
+		LOGI("Tex: w=%i, offx=%i", w, offx);
+		w    += -offx;
+		offx  = 0;
 	}
 	LOGI("Tex: c=0x%x=%c, x=%i, y=%i, w=%i, h=%i, offx=%i, offy=%i",
 	     c, (char) c, xx, yy, w, h, offx, offy);
@@ -239,6 +251,11 @@ static int fontgen_render(FT_Face face,
 			{
 				int src = i*bitmap->width + j;
 				int dst = (yy + i + offy)*FONTGEN_TEX_WIDTH + (xx + j + offx);
+				if(reverse)
+				{
+					dst = (yy + i + offy)*FONTGEN_TEX_WIDTH +
+					      (xx + (w - 1) - j - offx);
+				}
 				pixels[dst] = bitmap->buffer[src];
 			}
 		}
