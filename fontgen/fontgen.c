@@ -314,7 +314,7 @@ int main(int argc, char** argv)
 	}
 
 	// compute font_size
-	int font_size = (8*tex_height)/10;
+	int font_size = (90*tex_height)/100;
 	if(font_size <= 0)
 	{
 		LOGE("invalid %s", argv[1]);
