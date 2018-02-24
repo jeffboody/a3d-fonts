@@ -104,16 +104,17 @@ static int fontgen_top(FT_Face face, int c, int* top)
 	assert(top);
 
 	// treat the "unit separator" as the cursor
-	// but give it the same dimensions as '/'
+	// but give it the same dimensions as '['
+	int glyph_c = c;
 	if(c == 31)
 	{
-		c = '/';
+		glyph_c = '[';
 	}
 
-	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
 	if(glyph_index == 0)
 	{
-		LOGE("FT_Get_Char_Index failed c=0x%X=%c", c, (char) c);
+		LOGE("FT_Get_Char_Index failed c=0x%X=%c", glyph_c, (char) glyph_c);
 		return 0;
 	}
 
@@ -151,18 +152,19 @@ static int fontgen_render(FT_Face face,
 	assert(coords);
 
 	// treat the "unit separator" as the cursor
-	// but give it the same dimensions as '/'
+	// but give it the same dimensions as '['
 	int is_cursor = 0;
+	int glyph_c   = c;
 	if(c == 31)
 	{
-		c = '[';
 		is_cursor = 1;
+		glyph_c   = '[';
 	}
 
-	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
 	if(glyph_index == 0)
 	{
-		LOGE("FT_Get_Char_Index failed c=0x%X=%c", c, (char) c);
+		LOGE("FT_Get_Char_Index failed c=0x%X=%c", glyph_c, (char) glyph_c);
 		return 0;
 	}
 
