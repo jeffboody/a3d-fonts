@@ -104,11 +104,11 @@ static int fontgen_top(FT_Face face, int c, int* top)
 	assert(top);
 
 	// treat the "unit separator" as the cursor
-	// but give it the same dimensions as '['
+	// but give it the half width of '.'
 	int glyph_c = c;
 	if(c == 31)
 	{
-		glyph_c = '[';
+		glyph_c = '.';
 	}
 
 	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
@@ -152,13 +152,13 @@ static int fontgen_render(FT_Face face,
 	assert(coords);
 
 	// treat the "unit separator" as the cursor
-	// but give it the same dimensions as '['
+	// but give it the half width of '.'
 	int is_cursor = 0;
 	int glyph_c   = c;
 	if(c == 31)
 	{
 		is_cursor = 1;
-		glyph_c   = '[';
+		glyph_c   = '.';
 	}
 
 	// workaround for BarlowCondensed font where the right paren
@@ -234,11 +234,17 @@ static int fontgen_render(FT_Face face,
 	unsigned char* pixels = tex->pixels;
 	if(is_cursor)
 	{
-		for(i = 0; i < bitmap->rows; ++i)
+		int width2 = bitmap->width/2;
+		if(width2 == 0)
 		{
-			for(j = 0; j < bitmap->width; ++j)
+			width2 = 1;
+		}
+
+		for(i = 0; i < tex_height; ++i)
+		{
+			for(j = 0; j < width2; ++j)
 			{
-				int dst = (yy + i + offy)*FONTGEN_TEX_WIDTH + (xx + j + offx);
+				int dst = i*FONTGEN_TEX_WIDTH + (xx + j + offx);
 				pixels[dst] = 0xFF;
 			}
 		}
