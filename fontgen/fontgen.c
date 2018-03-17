@@ -381,7 +381,7 @@ int main(int argc, char** argv)
 	                                 FONTGEN_TEX_WIDTH,
 	                                 FONTGEN_TEX_HEIGHT,
 	                                 TEXGZ_UNSIGNED_BYTE,
-	                                 TEXGZ_LUMINANCE,
+	                                 TEXGZ_ALPHA,
 	                                 NULL);
 	if(tex == NULL)
 	{
@@ -450,11 +450,6 @@ int main(int argc, char** argv)
 	}
 
 	if(texgz_png_export(tex, pngname) == 0)
-	{
-		goto fail_export;
-	}
-
-	if(texgz_tex_exportz(tex, texname) == 0)
 	{
 		goto fail_export;
 	}
