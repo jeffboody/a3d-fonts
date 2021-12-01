@@ -31,7 +31,7 @@
 #include FT_FREETYPE_H
 
 #define LOG_TAG "fontgen"
-#include "a3d/a3d_log.h"
+#include "libcc/cc_log.h"
 
 /***********************************************************
 * private                                                  *
@@ -455,6 +455,13 @@ int main(int argc, char** argv)
 		goto fail_crop;
 	}
 
+	// convert to RGBA
+	if(texgz_tex_convert(tex, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert;
+	}
+
 	if(texgz_png_export(tex, pngname) == 0)
 	{
 		goto fail_export;
@@ -469,6 +476,7 @@ int main(int argc, char** argv)
 
 	// failure
 	fail_export:
+	fail_convert:
 	fail_crop:
 		unlink(xmlname);
 	fail_xml:

@@ -3,30 +3,29 @@ CLASSES  =
 SOURCE   = $(TARGET).c $(CLASSES:%=%.c)
 OBJECTS  = $(TARGET).o $(CLASSES:%=%.o)
 HFILES   = $(CLASSES:%=%.h)
-#OPT      = -O2 -Wall
-OPT      = -g -Wall
-CFLAGS   = $(OPT) -I. -I/usr/local/include/freetype2
-LDFLAGS  = -La3d -la3d -lm -Ltexgz -ltexgz -lpng -ljpeg -lz -lfreetype
+OPT      = -O2 -Wall
+CFLAGS   = $(OPT) -I. -I/usr/include/freetype2
+LDFLAGS  = -Ltexgz -ltexgz -Llibcc -lcc -lm -ljpeg -lz -lfreetype
 CCC      = gcc
 
 all: $(TARGET)
 
-$(TARGET): $(OBJECTS) a3d texgz
+$(TARGET): $(OBJECTS) libcc texgz
 	$(CCC) $(OPT) $(OBJECTS) -o $@ $(LDFLAGS)
 
-.PHONY: a3d texgz
+.PHONY: libcc texgz
 
-a3d:
-	$(MAKE) -C a3d -f Makefile.sdl
+libcc:
+	$(MAKE) -C libcc -f Makefile
 
 texgz:
 	$(MAKE) -C texgz
 
 clean:
 	rm -f $(OBJECTS) *~ \#*\# $(TARGET)
-	$(MAKE) -C a3d -f Makefile.sdl clean
+	$(MAKE) -C libcc -f Makefile clean
 	$(MAKE) -C texgz clean
-	rm a3d
+	rm libcc
 	rm texgz
 
 $(OBJECTS): $(HFILES)

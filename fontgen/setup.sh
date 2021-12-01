@@ -1,2 +1,2 @@
-ln -s ../../a3d
+ln -s ../../libcc
 ln -s ../../texgz
