@@ -40,6 +40,13 @@
 #define FONTGEN_TEX_WIDTH  1024
 #define FONTGEN_TEX_HEIGHT 1024
 
+// The 26.6 fixed float format used to define fractional
+// pixel coordinates. Here, 1 unit = 1/64 pixel.
+// https://freetype.org/freetype2/docs/reference/ft2-base_interface.html#ft_glyph_metrics
+// https://freetype.org/freetype1/docs/api/freetype1.txt
+#define TT_F26Dot6i 64
+#define TT_F26Dot6f 64.0f
+
 typedef struct
 {
 	int x;
@@ -89,13 +96,31 @@ static void fontgen_printMetrics(int c,
 	assert(bitmap);
 	assert(metrics);
 
+	// origin
+	//   The origin for horizontal text layouts is on the
+	//   left side of the text baseline.
+	// horiBearingX
+	//   For horizontal text layouts, this is the horizontal
+	//   distance from the current cursor position to the
+	//   leftmost border of the glyph image's bounding box.
+	// horiBearingY
+	//   For horizontal text layouts, this is the vertical
+	//   distance from the current cursor position (on the
+	//   baseline) to the topmost border of the glyph image's
+	//   bounding box.
+	// horiAdvance
+	//   For horizontal text layouts, this is the horizontal
+	//   distance to increment the pen position when the glyph
+	//   is drawn as part of a string of text.
+	// https://freetype.org/freetype2/docs/tutorial/step2.html
+
 	LOGI("char=0x%X=%c", c, (char) c);
 	LOGI("Bitmap: rows=%u, width=%u, pitch=%i, num_grays=%u",
 	     bitmap->rows, bitmap->width, bitmap->pitch, bitmap->num_grays);
 	LOGI("Metrics: horiBearingX=%f, horiBearingY=%f, horiAdvance=%f",
-	     (float) metrics->horiBearingX/64.0f,
-	     (float) metrics->horiBearingY/64.0f,
-	     (float) metrics->horiAdvance/64.0f);
+	     (float) metrics->horiBearingX/TT_F26Dot6f,
+	     (float) metrics->horiBearingY/TT_F26Dot6f,
+	     (float) metrics->horiAdvance/TT_F26Dot6f);
 }
 
 static int fontgen_top(FT_Face face, int c, int* top)
@@ -131,7 +156,7 @@ static int fontgen_top(FT_Face face, int c, int* top)
 	}
 
 	FT_Glyph_Metrics* metrics = &(face->glyph->metrics);
-	int horiBearingY = metrics->horiBearingY/64;
+	int horiBearingY = metrics->horiBearingY/TT_F26Dot6i;
 	//int bitmap_top = face->glyph->bitmap_top;
 	if(horiBearingY > *top)
 	{
@@ -201,10 +226,10 @@ static int fontgen_render(FT_Face face,
 	// check texture position
 	int xx   = *x;
 	int yy   = *y;
-	int w    = metrics->horiAdvance/64;
+	int w    = metrics->horiAdvance/TT_F26Dot6i;
 	int h    = tex_height;
-	int offx = metrics->horiBearingX/64;
-	int offy = origin_y - metrics->horiBearingY/64;
+	int offx = metrics->horiBearingX/TT_F26Dot6i;
+	int offy = origin_y - metrics->horiBearingY/TT_F26Dot6i;
 	if(xx + w > FONTGEN_TEX_WIDTH)
 	{
 		xx  = 0;
@@ -364,9 +389,9 @@ int main(int argc, char** argv)
 		goto fail_pixel_size;
 	}
 
-	// measure printable ascii characters
-	// because freetype has a weird origin
-	// ignore the "unit separator" character
+	// measure the maximum distance from the baseline to the
+	// top of any printable ascii character
+	// ignore the "unit separator" character (31)
 	int c;
 	int top = 0;
 	for(c = 32; c <= 126; ++c)
@@ -377,6 +402,7 @@ int main(int argc, char** argv)
 		}
 	}
 
+	// create a working buffer to store rasterized characters
 	texgz_tex_t* tex = texgz_tex_new(FONTGEN_TEX_WIDTH,
 	                                 FONTGEN_TEX_HEIGHT,
 	                                 FONTGEN_TEX_WIDTH,
