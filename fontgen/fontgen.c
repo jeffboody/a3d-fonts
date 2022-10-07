@@ -334,11 +334,6 @@ int main(int argc, char** argv)
 
 	const char* name = argv[3];
 
-	char texname[256];
-	snprintf(texname, 256, "%s-%i.texz",
-	         name, tex_height);
-	texname[255] = '\0';
-
 	char pngname[256];
 	snprintf(pngname, 256, "%s-%i.png",
 	         name, tex_height);
