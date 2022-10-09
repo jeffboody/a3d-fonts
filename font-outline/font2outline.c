@@ -283,8 +283,8 @@ int main(int argc, char** argv)
 				w    += -offx;
 				offx  = 0.0f;
 			}
-			fprintf(f, ",\"w\":%i", (int) w);
-			fprintf(f, ",\"h\":%i", (int) h);
+			fprintf(f, ",\"w\":%0.1f", w);
+			fprintf(f, ",\"h\":%0.1f", h);
 
 			fprintf(f, ",\"np\":%i", outline->n_points);
 			fprintf(f, ",\"p\":[");
@@ -296,8 +296,8 @@ int main(int argc, char** argv)
 					fprintf(f, ",");
 				}
 				fprintf(f, "%0.1f,%0.1f",
-				        (float) (outline->points[i].x/TT_F26Dot6f),
-				        (float) (outline->points[i].y/TT_F26Dot6f + offy));
+				        outline->points[i].x/TT_F26Dot6f,
+				        h - (outline->points[i].y/TT_F26Dot6f + offy));
 			}
 			fprintf(f, "]");
 
