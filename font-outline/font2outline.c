@@ -228,7 +228,7 @@ int main(int argc, char** argv)
 			int i;
 			for(i = 0; i < outline->n_points; ++i)
 			{
-				fprintf(f, "%0.1f %0.1f\n",
+				fprintf(f, "%0.3f %0.3f\n",
 				        (float) (outline->points[i].x/TT_F26Dot6f + x),
 				        (float) (outline->points[i].y/TT_F26Dot6f + offy));
 			}
@@ -295,7 +295,7 @@ int main(int argc, char** argv)
 				{
 					fprintf(f, ",");
 				}
-				fprintf(f, "%0.1f,%0.1f",
+				fprintf(f, "%0.3f,%0.3f",
 				        outline->points[i].x/TT_F26Dot6f,
 				        h - (outline->points[i].y/TT_F26Dot6f + offy));
 			}
