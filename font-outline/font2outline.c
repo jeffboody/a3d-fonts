@@ -85,15 +85,9 @@ int main(int argc, char** argv)
 	// FreeType Outlines
 	// https://freetype.org/freetype2/docs/glyphs/glyphs-6.html
 
-	const char* string = NULL;
-	if(argc == 5)
+	if(argc != 4)
 	{
-		// a debug string may be rendered in place of font map
-		string = argv[4];
-	}
-	else if(argc != 4)
-	{
-		LOGE("usage: %s <tex_height> <font.ttf> <font_name> [string]",
+		LOGE("usage: %s <tex_height> <font.ttf> <font_name>",
 		     argv[0]);
 		return EXIT_FAILURE;
 	}
@@ -121,16 +115,8 @@ int main(int argc, char** argv)
 	const char* name = argv[3];
 
 	char datname[256];
-	if(string)
-	{
-		snprintf(datname, 256, "%s-%i.dat",
-		         name, tex_height);
-	}
-	else
-	{
-		snprintf(datname, 256, "%s-%i.json",
-		         name, tex_height);
-	}
+	snprintf(datname, 256, "%s-%i.json",
+	         name, tex_height);
 
 	FT_Library library;
 	if(FT_Init_FreeType(&library) != 0)
@@ -172,163 +158,95 @@ int main(int argc, char** argv)
 		goto fail_fopen;
 	}
 
-	if(string)
+	fprintf(f, "[");
+
+	// output printable ascii characters as JSON
+	// ./font2outline 64 font.ttf ascii
+	// treat the "unit separator" as the cursor
+	for(c = 32; c <= 126; ++c)
 	{
-		float x = 0.0f;
-
-		// debug option to plot strings using gnuplot
-		// ./font2outline 64 font.ttf HelloWorld "Hello World!"
-		// gnuplot
-		// > plot "file.dat" with linespoints
-
-		// render string from command line
-		c = 0;
-		while(string[c] != '\0')
+		if(c > 32)
 		{
-			// check for non-printable ascii characters
-			// ignore the "unit separator" character
-			if((string[c] < 32) || (string[c] > 126))
-			{
-				++c;
-				continue;
-			}
-
-			int glyph_index = FT_Get_Char_Index(face, (FT_ULong) string[c]);
-			if(glyph_index == 0)
-			{
-				LOGE("FT_Get_Char_Index failed c=0x%X=%c",
-				     (unsigned int) string[c], string[c]);
-				goto fail_get_char_index;
-			}
-
-			if(FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT) != 0)
-			{
-				LOGE("FT_Load_Glyph failed");
-				goto fail_load_glyph;
-			}
-
-			FT_Outline*       outline = &face->glyph->outline;
-			FT_Glyph_Metrics* metrics = &face->glyph->metrics;
-
-			// check glyph position
-			float w    = (float) (metrics->horiAdvance/TT_F26Dot6i);
-			float h    = (float) tex_height;
-			float offx = (float) (metrics->horiBearingX/TT_F26Dot6i);
-			float offy = (float) (h - top);
-
-			// freetype has a weird origin leading to
-			// some characters who are outside the expected
-			// bounding box
-			if(offx < 0.0f)
-			{
-				w    += -offx;
-				offx  = 0.0f;
-			}
-
-			int i;
-			for(i = 0; i < outline->n_points; ++i)
-			{
-				fprintf(f, "%0.3f %0.3f\n",
-				        (float) (outline->points[i].x/TT_F26Dot6f + x),
-				        (float) (outline->points[i].y/TT_F26Dot6f + offy));
-			}
-
-			x += w;
-			++c;
+			fprintf(f, ",");
 		}
-	}
-	else
-	{
-		fprintf(f, "[");
+		fprintf(f, "{\"i\":%i", c);
 
-		// output printable ascii characters as JSON
-		// ./font2outline 64 font.ttf ascii
-		// treat the "unit separator" as the cursor
-		for(c = 32; c <= 126; ++c)
+		int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+		if(glyph_index == 0)
 		{
-			if(c > 32)
+			LOGE("FT_Get_Char_Index failed c=0x%X=%c",
+			     (unsigned int) c, c);
+			goto fail_get_char_index;
+		}
+
+		if(FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT) != 0)
+		{
+			LOGE("FT_Load_Glyph failed");
+			goto fail_load_glyph;
+		}
+
+		FT_Outline*       outline = &face->glyph->outline;
+		FT_Glyph_Metrics* metrics = &face->glyph->metrics;
+
+		// check glyph position
+		float w    = (float) (metrics->horiAdvance/TT_F26Dot6i);
+		float h    = (float) tex_height;
+		float offx = (float) (metrics->horiBearingX/TT_F26Dot6i);
+		float offy = (float) (h - top);
+
+		// freetype has a weird origin leading to
+		// some characters who are outside the expected
+		// bounding box
+		if(offx < 0.0f)
+		{
+			w    += -offx;
+			offx  = 0.0f;
+		}
+		fprintf(f, ",\"w\":%0.1f", w);
+		fprintf(f, ",\"h\":%0.1f", h);
+
+		fprintf(f, ",\"np\":%i", outline->n_points);
+		fprintf(f, ",\"p\":[");
+		int i;
+		for(i = 0; i < outline->n_points; ++i)
+		{
+			if(i > 0)
 			{
 				fprintf(f, ",");
 			}
-			fprintf(f, "{\"i\":%i", c);
-
-			int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
-			if(glyph_index == 0)
-			{
-				LOGE("FT_Get_Char_Index failed c=0x%X=%c",
-				     (unsigned int) c, c);
-				goto fail_get_char_index;
-			}
-
-			if(FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT) != 0)
-			{
-				LOGE("FT_Load_Glyph failed");
-				goto fail_load_glyph;
-			}
-
-			FT_Outline*       outline = &face->glyph->outline;
-			FT_Glyph_Metrics* metrics = &face->glyph->metrics;
-
-			// check glyph position
-			float w    = (float) (metrics->horiAdvance/TT_F26Dot6i);
-			float h    = (float) tex_height;
-			float offx = (float) (metrics->horiBearingX/TT_F26Dot6i);
-			float offy = (float) (h - top);
-
-			// freetype has a weird origin leading to
-			// some characters who are outside the expected
-			// bounding box
-			if(offx < 0.0f)
-			{
-				w    += -offx;
-				offx  = 0.0f;
-			}
-			fprintf(f, ",\"w\":%0.1f", w);
-			fprintf(f, ",\"h\":%0.1f", h);
-
-			fprintf(f, ",\"np\":%i", outline->n_points);
-			fprintf(f, ",\"p\":[");
-			int i;
-			for(i = 0; i < outline->n_points; ++i)
-			{
-				if(i > 0)
-				{
-					fprintf(f, ",");
-				}
-				fprintf(f, "%0.3f,%0.3f",
-				        outline->points[i].x/TT_F26Dot6f,
-				        h - (outline->points[i].y/TT_F26Dot6f + offy));
-			}
-			fprintf(f, "]");
-
-			fprintf(f, ",\"t\":[");
-			for(i = 0; i < outline->n_points; ++i)
-			{
-				if(i > 0)
-				{
-					fprintf(f, ",");
-				}
-				fprintf(f, "%i", (int) FT_CURVE_TAG(outline->tags[i]));
-			}
-			fprintf(f, "]");
-
-			fprintf(f, ",\"nc\":%i", outline->n_contours);
-			fprintf(f, ",\"c\":[");
-			for(i = 0; i < outline->n_contours; ++i)
-			{
-				if(i > 0)
-				{
-					fprintf(f, ",");
-				}
-				fprintf(f, "%i", (int) (outline->contours[i]));
-			}
-			fprintf(f, "]");
-
-			fprintf(f, "}");
+			fprintf(f, "%0.3f,%0.3f",
+			        outline->points[i].x/TT_F26Dot6f,
+			        h - (outline->points[i].y/TT_F26Dot6f + offy));
 		}
-
 		fprintf(f, "]");
+
+		fprintf(f, ",\"t\":[");
+		for(i = 0; i < outline->n_points; ++i)
+		{
+			if(i > 0)
+			{
+				fprintf(f, ",");
+			}
+			fprintf(f, "%i", (int) FT_CURVE_TAG(outline->tags[i]));
+		}
+		fprintf(f, "]");
+
+		fprintf(f, ",\"nc\":%i", outline->n_contours);
+		fprintf(f, ",\"c\":[");
+		for(i = 0; i < outline->n_contours; ++i)
+		{
+			if(i > 0)
+			{
+				fprintf(f, ",");
+			}
+			fprintf(f, "%i", (int) (outline->contours[i]));
+		}
+		fprintf(f, "]");
+
+		fprintf(f, "}");
 	}
+
+	fprintf(f, "]");
 
 	fclose(f);
 	FT_Done_Face(face);
