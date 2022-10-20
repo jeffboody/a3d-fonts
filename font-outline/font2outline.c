@@ -49,7 +49,6 @@ static int compute_top(FT_Face face, int c, FT_Pos* top)
 	assert(top);
 
 	// treat the "unit separator" as the cursor
-	// but give it the half width of '.'
 	int glyph_c = c;
 	if(c == 31)
 	{
@@ -128,10 +127,9 @@ int main(int argc, char** argv)
 
 	// measure the maximum distance from the baseline to the
 	// top of any printable ascii character
-	// ignore the "unit separator" character (31)
 	int    c;
 	FT_Pos top = 0;
-	for(c = 32; c <= 126; ++c)
+	for(c = 31; c <= 126; ++c)
 	{
 		if(compute_top(face, c, &top) == 0)
 		{
@@ -149,16 +147,25 @@ int main(int argc, char** argv)
 	fprintf(f, "[");
 
 	// output printable ascii characters as JSON
-	// treat the "unit separator" as the cursor
-	for(c = 32; c <= 126; ++c)
+	for(c = 31; c <= 126; ++c)
 	{
-		if(c > 32)
+		if(c > 31)
 		{
 			fprintf(f, ",");
 		}
 		fprintf(f, "{\"name\":\"ascii-0x%X\"", c);
 
-		FT_UInt glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+		FT_UInt glyph_index;
+
+		if(c == 31)
+		{
+			// treat the "unit separator" as the cursor
+			glyph_index = FT_Get_Char_Index(face, (FT_ULong) '.');
+		}
+		else
+		{
+			glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+		}
 		if(glyph_index == 0)
 		{
 			LOGE("FT_Get_Char_Index failed c=0x%X=%c",
@@ -192,43 +199,63 @@ int main(int argc, char** argv)
 		fprintf(f, ",\"w\":%f", pos2float(w));
 		fprintf(f, ",\"h\":%f", pos2float(h));
 
-		fprintf(f, ",\"np\":%i", outline->n_points);
-		fprintf(f, ",\"p\":[");
-		int i;
-		for(i = 0; i < outline->n_points; ++i)
+		// treat the "unit separator" as the cursor
+		// but give it 2/3 width of '.'
+		if(c == 31)
 		{
-			if(i > 0)
-			{
-				fprintf(f, ",");
-			}
-			fprintf(f, "%f,%f",
-			        pos2float(outline->points[i].x),
-			        pos2float((h - (outline->points[i].y + offy))));
+			float x0 = pos2float(w)/3.0f;
+			float x1 = 2.0f*x0;
+			fprintf(f, ",\"np\":4");
+			fprintf(f, ",\"p\":[");
+			fprintf(f, "%f,%f,", x0, 0.05f);
+			fprintf(f, "%f,%f,", x0, 0.95f);
+			fprintf(f, "%f,%f,", x1, 0.95f);
+			fprintf(f, "%f,%f,", x1, 0.05f);
+			fprintf(f, "]");
+			fprintf(f, ",\"t\":[1,1,1,1]");
+			fprintf(f, ",\"nc\":1");
+			fprintf(f, ",\"c\":[3]");
 		}
-		fprintf(f, "]");
+		else
+		{
+			fprintf(f, ",\"np\":%i", outline->n_points);
+			fprintf(f, ",\"p\":[");
+			int i;
+			for(i = 0; i < outline->n_points; ++i)
+			{
+				if(i > 0)
+				{
+					fprintf(f, ",");
+				}
+				fprintf(f, "%f,%f",
+				        pos2float(outline->points[i].x),
+				        pos2float((h - (outline->points[i].y + offy))));
+			}
+			fprintf(f, "]");
 
-		fprintf(f, ",\"t\":[");
-		for(i = 0; i < outline->n_points; ++i)
-		{
-			if(i > 0)
+			fprintf(f, ",\"t\":[");
+			for(i = 0; i < outline->n_points; ++i)
 			{
-				fprintf(f, ",");
+				if(i > 0)
+				{
+					fprintf(f, ",");
+				}
+				fprintf(f, "%i", (int) FT_CURVE_TAG(outline->tags[i]));
 			}
-			fprintf(f, "%i", (int) FT_CURVE_TAG(outline->tags[i]));
-		}
-		fprintf(f, "]");
+			fprintf(f, "]");
 
-		fprintf(f, ",\"nc\":%i", outline->n_contours);
-		fprintf(f, ",\"c\":[");
-		for(i = 0; i < outline->n_contours; ++i)
-		{
-			if(i > 0)
+			fprintf(f, ",\"nc\":%i", outline->n_contours);
+			fprintf(f, ",\"c\":[");
+			for(i = 0; i < outline->n_contours; ++i)
 			{
-				fprintf(f, ",");
+				if(i > 0)
+				{
+					fprintf(f, ",");
+				}
+				fprintf(f, "%i", (int) (outline->contours[i]));
 			}
-			fprintf(f, "%i", (int) (outline->contours[i]));
+			fprintf(f, "]");
 		}
-		fprintf(f, "]");
 
 		fprintf(f, "}");
 	}
