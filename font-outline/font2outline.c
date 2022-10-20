@@ -29,18 +29,21 @@
 #define LOG_TAG "font2outline"
 #include "libcc/cc_log.h"
 
-/***********************************************************
-* private                                                  *
-***********************************************************/
-
 // The 26.6 fixed float format used to define fractional
 // pixel coordinates. Here, 1 unit = 1/64 pixel.
 // https://freetype.org/freetype2/docs/reference/ft2-base_interface.html#ft_glyph_metrics
 // https://freetype.org/freetype1/docs/api/freetype1.txt
-#define TT_F26Dot6i 64
-#define TT_F26Dot6f 64.0f
+FT_Pos TT_F26Dot6 = 64;
 
-static int font2outline_top(FT_Face face, int c, int* top)
+// font height includes line spacing
+#define FONT_HEIGHT 100
+#define FONT_SIZE   90
+
+/***********************************************************
+* private                                                  *
+***********************************************************/
+
+static int compute_top(FT_Face face, int c, FT_Pos* top)
 {
 	assert(face);
 	assert(top);
@@ -53,7 +56,7 @@ static int font2outline_top(FT_Face face, int c, int* top)
 		glyph_c = '.';
 	}
 
-	int glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
+	FT_UInt glyph_index = FT_Get_Char_Index(face, (FT_ULong) glyph_c);
 	if(glyph_index == 0)
 	{
 		LOGE("FT_Get_Char_Index failed c=0x%X=%c", glyph_c, (char) glyph_c);
@@ -67,13 +70,17 @@ static int font2outline_top(FT_Face face, int c, int* top)
 	}
 
 	FT_Glyph_Metrics* metrics = &(face->glyph->metrics);
-	int horiBearingY = metrics->horiBearingY/TT_F26Dot6i;
-	//int bitmap_top = face->glyph->bitmap_top;
-	if(horiBearingY > *top)
+	if(metrics->horiBearingY > *top)
 	{
-		*top = horiBearingY;
+		*top = metrics->horiBearingY;
 	}
 	return 1;
+}
+
+static float pos2float(FT_Pos pos)
+{
+	FT_Pos h = FONT_HEIGHT*TT_F26Dot6;
+	return ((float) pos)/((float) h);
 }
 
 /***********************************************************
@@ -85,38 +92,14 @@ int main(int argc, char** argv)
 	// FreeType Outlines
 	// https://freetype.org/freetype2/docs/glyphs/glyphs-6.html
 
-	if(argc != 4)
+	if(argc != 3)
 	{
-		LOGE("usage: %s <tex_height> <font.ttf> <font_name>",
+		LOGE("usage: %s <font.ttf> <outline.json>",
 		     argv[0]);
 		return EXIT_FAILURE;
 	}
-
-	// parse tex_height
-	int tex_height = strtol(argv[1], NULL, 0);
-	if(tex_height <= 0)
-	{
-		LOGE("invalid %s", argv[1]);
-		return EXIT_FAILURE;
-	}
-
-	// compute font_size
-	int font_size = (90*tex_height)/100;
-	if(font_size <= 0)
-	{
-		LOGE("invalid %s", argv[1]);
-		return EXIT_FAILURE;
-	}
-
-	char fname[256];
-	snprintf(fname, 256, "%s", argv[2]);
-	fname[255] = '\0';
-
-	const char* name = argv[3];
-
-	char datname[256];
-	snprintf(datname, 256, "%s-%i.json",
-	         name, tex_height);
+	const char* fname = argv[1];
+	const char* oname = argv[2];
 
 	FT_Library library;
 	if(FT_Init_FreeType(&library) != 0)
@@ -132,7 +115,7 @@ int main(int argc, char** argv)
 		goto fail_face;
 	}
 
-	if(FT_Set_Pixel_Sizes(face, 0, font_size) != 0)
+	if(FT_Set_Pixel_Sizes(face, 0, FONT_SIZE) != 0)
 	{
 		LOGE("FT_Set_Pixel_Sizes failed");
 		goto fail_pixel_size;
@@ -141,27 +124,26 @@ int main(int argc, char** argv)
 	// measure the maximum distance from the baseline to the
 	// top of any printable ascii character
 	// ignore the "unit separator" character (31)
-	int c;
-	int top = 0;
+	int    c;
+	FT_Pos top = 0;
 	for(c = 32; c <= 126; ++c)
 	{
-		if(font2outline_top(face, c, &top) == 0)
+		if(compute_top(face, c, &top) == 0)
 		{
 			goto fail_top;
 		}
 	}
 
-	FILE* f = fopen(datname, "w");
+	FILE* f = fopen(oname, "w");
 	if(f == NULL)
 	{
-		LOGE("invalid %s", datname);
+		LOGE("invalid %s", oname);
 		goto fail_fopen;
 	}
 
 	fprintf(f, "[");
 
 	// output printable ascii characters as JSON
-	// ./font2outline 64 font.ttf ascii
 	// treat the "unit separator" as the cursor
 	for(c = 32; c <= 126; ++c)
 	{
@@ -171,7 +153,7 @@ int main(int argc, char** argv)
 		}
 		fprintf(f, "{\"i\":%i", c);
 
-		int glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
+		FT_UInt glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
 		if(glyph_index == 0)
 		{
 			LOGE("FT_Get_Char_Index failed c=0x%X=%c",
@@ -189,10 +171,10 @@ int main(int argc, char** argv)
 		FT_Glyph_Metrics* metrics = &face->glyph->metrics;
 
 		// check glyph position
-		float w    = (float) (metrics->horiAdvance/TT_F26Dot6i);
-		float h    = (float) tex_height;
-		float offx = (float) (metrics->horiBearingX/TT_F26Dot6i);
-		float offy = (float) (h - top);
+		FT_Pos w    = metrics->horiAdvance;
+		FT_Pos h    = FONT_HEIGHT*TT_F26Dot6;
+		FT_Pos offx = metrics->horiBearingX;
+		FT_Pos offy = h - top;
 
 		// freetype has a weird origin leading to
 		// some characters who are outside the expected
@@ -200,10 +182,10 @@ int main(int argc, char** argv)
 		if(offx < 0.0f)
 		{
 			w    += -offx;
-			offx  = 0.0f;
+			offx  = 0;
 		}
-		fprintf(f, ",\"w\":%0.1f", w);
-		fprintf(f, ",\"h\":%0.1f", h);
+		fprintf(f, ",\"w\":%f", pos2float(w));
+		fprintf(f, ",\"h\":%f", pos2float(h));
 
 		fprintf(f, ",\"np\":%i", outline->n_points);
 		fprintf(f, ",\"p\":[");
@@ -214,9 +196,9 @@ int main(int argc, char** argv)
 			{
 				fprintf(f, ",");
 			}
-			fprintf(f, "%0.3f,%0.3f",
-			        outline->points[i].x/TT_F26Dot6f,
-			        h - (outline->points[i].y/TT_F26Dot6f + offy));
+			fprintf(f, "%f,%f",
+			        pos2float(outline->points[i].x),
+			        pos2float((h - (outline->points[i].y + offy))));
 		}
 		fprintf(f, "]");
 
