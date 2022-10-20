@@ -156,7 +156,7 @@ int main(int argc, char** argv)
 		{
 			fprintf(f, ",");
 		}
-		fprintf(f, "{\"i\":%i", c);
+		fprintf(f, "{\"name\":\"ascii-0x%X\"", c);
 
 		FT_UInt glyph_index = FT_Get_Char_Index(face, (FT_ULong) c);
 		if(glyph_index == 0)
