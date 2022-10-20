@@ -121,6 +121,11 @@ int main(int argc, char** argv)
 		goto fail_pixel_size;
 	}
 
+	if(FT_HAS_KERNING(face))
+	{
+		LOGW("kerning not supported");
+	}
+
 	// measure the maximum distance from the baseline to the
 	// top of any printable ascii character
 	// ignore the "unit separator" character (31)
